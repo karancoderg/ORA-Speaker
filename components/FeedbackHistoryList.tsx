@@ -38,7 +38,7 @@ export default function FeedbackHistoryList({
       x: 0,
       transition: {
         duration: prefersReducedMotion ? 0 : 0.3,
-        ease: 'easeOut',
+        ease: 'easeOut' as const,
       },
     },
   };
@@ -55,7 +55,7 @@ export default function FeedbackHistoryList({
             transition={{ 
               duration: prefersReducedMotion ? 0 : 1.5, 
               repeat: Infinity,
-              ease: 'easeInOut',
+              ease: 'easeInOut' as const,
             }}
           />
         ))}
@@ -70,7 +70,7 @@ export default function FeedbackHistoryList({
         className="text-center py-8 px-4"
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: prefersReducedMotion ? 0 : 0.4, ease: 'easeOut' }}
+        transition={{ duration: prefersReducedMotion ? 0 : 0.4, ease: 'easeOut' as const }}
       >
         <p className="text-sm text-slate-400">No feedback yet</p>
         <p className="text-xs text-slate-500 mt-1">
