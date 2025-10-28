@@ -181,25 +181,25 @@ export default function UploadBox({
 
   // Determine the current state for styling
   const getContainerClasses = () => {
-    const baseClasses = 'backdrop-blur-lg border-2 border-dashed rounded-3xl p-12 text-center transition-all duration-300';
+    const baseClasses = 'backdrop-blur-lg border-2 border-dashed rounded-2xl p-12 text-center transition-all duration-300 focus-within:ring-2 focus-within:ring-blue-400 focus-within:ring-offset-2 focus-within:ring-offset-slate-900';
     
     if (validationError) {
-      return `${baseClasses} bg-red-500/5 border-red-500/50 shadow-[0_0_30px_rgba(239,68,68,0.3)] animate-shake`;
+      return `${baseClasses} bg-red-500/5 border-red-500/50 shadow-lg animate-shake`;
     }
     
     if (uploadSuccess) {
-      return `${baseClasses} bg-green-500/5 border-green-500/50 shadow-[0_0_30px_rgba(34,197,94,0.3)]`;
+      return `${baseClasses} bg-green-500/5 border-green-500/50 shadow-lg`;
     }
     
     if (isUploading) {
-      return `${baseClasses} bg-white/5 border-blue-500/50 shadow-[0_0_20px_rgba(59,130,246,0.2)] cursor-not-allowed`;
+      return `${baseClasses} bg-white/5 border-blue-500/50 shadow-lg cursor-not-allowed`;
     }
     
     if (isDragging) {
-      return `${baseClasses} bg-white/10 border-blue-500/50 shadow-[0_0_30px_rgba(59,130,246,0.3)] scale-[1.02]`;
+      return `${baseClasses} bg-white/10 border-blue-500/50 shadow-xl scale-[1.02]`;
     }
     
-    return `${baseClasses} bg-white/5 border-white/20 hover:border-blue-500/50 hover:bg-white/10 hover:shadow-[0_0_30px_rgba(59,130,246,0.3)] cursor-pointer`;
+    return `${baseClasses} bg-white/5 border-white/20 hover:border-blue-500/50 hover:bg-white/10 hover:shadow-xl cursor-pointer`;
   };
 
   return (

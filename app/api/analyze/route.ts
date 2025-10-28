@@ -91,10 +91,10 @@ export async function POST(request: NextRequest) {
       const fs = await import('fs/promises');
       const path = await import('path');
       const os = await import('os');
-      
+
       const tempDir = os.tmpdir();
       const tempFilePath = path.join(tempDir, `video-${Date.now()}.mp4`);
-      
+
       await fs.writeFile(tempFilePath, videoBuffer);
 
       // Upload to Gemini
@@ -173,16 +173,19 @@ Be constructive, specific, and encouraging.`;
     }
 
     // 5. Insert feedback record into feedback_sessions table
+    let feedbackSessionId: string;
     try {
-      const { error: dbError } = await supabaseServer
+      const { data, error: dbError } = await supabaseServer
         .from('feedback_sessions')
         .insert({
           user_id: userId,
           video_path: videoPath,
           feedback_text: feedback,
-        });
+        })
+        .select('id')
+        .single();
 
-      if (dbError) {
+      if (dbError || !data) {
         console.error('Failed to insert feedback into database:', dbError);
         return NextResponse.json(
           {
@@ -192,6 +195,8 @@ Be constructive, specific, and encouraging.`;
           { status: 500 }
         );
       }
+
+      feedbackSessionId = data.id;
     } catch (error) {
       console.error('Database operation failed:', error);
       return NextResponse.json(
@@ -203,10 +208,11 @@ Be constructive, specific, and encouraging.`;
       );
     }
 
-    // 6. Return success response with feedback text to client
+    // 6. Return success response with feedback text and session ID to client
     return NextResponse.json({
       success: true,
       feedback,
+      feedbackSessionId,
     });
   } catch (error) {
     // Handle unexpected errors

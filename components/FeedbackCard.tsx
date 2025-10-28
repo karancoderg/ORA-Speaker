@@ -158,7 +158,7 @@ export default function FeedbackCard({
         animate={{ opacity: 1, y: 0, scale: 1 }}
         exit={{ opacity: 0, y: -20, scale: 0.98 }}
         transition={{ duration: 0.5, ease: 'easeOut' }}
-        className="backdrop-blur-lg bg-white/5 border border-white/10 rounded-2xl shadow-lg overflow-hidden relative hover:border-white/20 hover:shadow-xl transition-all duration-300"
+        className="backdrop-blur-lg bg-white/5 border border-white/10 rounded-2xl shadow-lg overflow-hidden relative hover:border-white/20 hover:shadow-xl transition-all duration-300 focus-within:ring-2 focus-within:ring-blue-400 focus-within:ring-offset-2 focus-within:ring-offset-slate-900"
       >
         {/* Gradient accent border on left */}
         <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-blue-500 via-purple-500 to-cyan-500"></div>
@@ -250,7 +250,7 @@ export default function FeedbackCard({
               transition={{ delay: 0.6, duration: 0.4 }}
               whileHover={{ y: -4, scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
-              className="group mt-8 px-6 py-3 bg-gradient-to-r from-blue-500 via-purple-500 to-purple-600 text-white font-semibold rounded-xl shadow-lg hover:shadow-[0_0_30px_rgba(59,130,246,0.5)] transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-slate-900 relative overflow-hidden"
+              className="group mt-8 px-6 py-3 bg-gradient-to-r from-blue-500 via-purple-500 to-purple-600 text-white font-semibold rounded-xl shadow-lg hover:shadow-[0_0_30px_rgba(59,130,246,0.5)] transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-slate-900 relative overflow-hidden min-h-[44px]"
             >
               {/* Shimmer effect on hover */}
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-200%] group-hover:translate-x-[200%] transition-transform duration-700"></div>

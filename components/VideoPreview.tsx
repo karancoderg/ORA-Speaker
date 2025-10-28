@@ -14,7 +14,7 @@ export default function VideoPreview({ videoUrl, videoPath }: VideoPreviewProps)
 
   return (
     <SlideUp className="w-full max-w-4xl mx-auto">
-      <div className="group relative backdrop-blur-lg bg-white/5 border border-white/20 rounded-2xl shadow-lg p-4 md:p-6 transition-all duration-300 hover:border-blue-500/50 hover:shadow-[0_0_30px_rgba(59,130,246,0.2)]">
+      <div className="group relative backdrop-blur-lg bg-white/5 border border-white/20 rounded-2xl shadow-lg p-4 md:p-6 transition-all duration-300 hover:border-blue-500/50 hover:shadow-xl focus-within:ring-2 focus-within:ring-blue-400 focus-within:ring-offset-2 focus-within:ring-offset-slate-900">
         {/* Gradient border effect on hover */}
         <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-blue-500/0 via-purple-500/0 to-cyan-500/0 group-hover:from-blue-500/20 group-hover:via-purple-500/20 group-hover:to-cyan-500/20 transition-all duration-300 pointer-events-none" />
         
@@ -27,7 +27,7 @@ export default function VideoPreview({ videoUrl, videoPath }: VideoPreviewProps)
           </div>
           
           {/* Video player container */}
-          <div className="relative w-full aspect-video bg-slate-900/80 rounded-xl overflow-hidden shadow-[0_8px_30px_rgba(0,0,0,0.4)]">
+          <div className="relative w-full aspect-video bg-slate-900/80 rounded-xl overflow-hidden shadow-lg">
             {/* Loading shimmer effect */}
             {isLoading && (
               <div className="absolute inset-0 bg-gradient-to-r from-slate-800 via-slate-700 to-slate-800 animate-shimmer bg-[length:200%_100%]" />
