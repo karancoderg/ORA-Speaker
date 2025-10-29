@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, DragEvent, ChangeEvent } from 'react';
+import { useState, useRef, useEffect, DragEvent, ChangeEvent } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Upload, CheckCircle2, AlertCircle } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
@@ -10,12 +10,14 @@ interface UploadBoxProps {
   onUploadComplete: (videoPath: string, videoUrl: string) => void;
   onUploadProgress: (progress: number) => void;
   onError: (error: string) => void;
+  resetTrigger?: number; // Optional prop to trigger reset from parent
 }
 
 export default function UploadBox({
   onUploadComplete,
   onUploadProgress,
   onError,
+  resetTrigger,
 }: UploadBoxProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -23,6 +25,19 @@ export default function UploadBox({
   const [validationError, setValidationError] = useState<string | null>(null);
   const [uploadSuccess, setUploadSuccess] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Reset upload state when resetTrigger changes
+  useEffect(() => {
+    if (resetTrigger !== undefined) {
+      setUploadSuccess(false);
+      setValidationError(null);
+      setUploadProgress(0);
+      setIsUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  }, [resetTrigger]);
 
   const handleDragEnter = (e: DragEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -174,7 +189,16 @@ export default function UploadBox({
   };
 
   const handleClick = () => {
-    if (!isUploading && !uploadSuccess) {
+    if (!isUploading) {
+      // If upload was successful, reset state for new upload
+      if (uploadSuccess) {
+        setUploadSuccess(false);
+        setValidationError(null);
+        setUploadProgress(0);
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+        }
+      }
       fileInputRef.current?.click();
     }
   };
@@ -373,7 +397,7 @@ export default function UploadBox({
             className="mt-4"
           >
             <p className="text-sm text-green-400 font-medium">Upload Complete!</p>
-            <p className="text-xs text-slate-400 mt-1">Your video is ready for analysis</p>
+            <p className="text-xs text-slate-400 mt-1">Click to upload another video</p>
           </motion.div>
         ) : validationError ? (
           <motion.div
@@ -406,7 +430,7 @@ export default function UploadBox({
           accept="video/mp4"
           onChange={handleFileInputChange}
           className="hidden"
-          disabled={isUploading || uploadSuccess}
+          disabled={isUploading}
         />
       </motion.div>
 

@@ -464,46 +464,29 @@ But NEVER flat.
 
 Your ideas are good, your delivery is stable, but your expression does not carry weight — you must enforce contrast, emotional marking and physical signaling or the speech will remain forgettable.`,
 
-  visualizations: `You are analyzing a public speaking presentation. You will receive structured JSON data from an external AI analysis.
+  visualizations: `SYSTEM INSTRUCTION: You are a JSON API. You must respond with ONLY valid JSON. No other text is allowed.
 
-**Analysis Mode: Visualizations (Button VIS)**
-
-Your task is to describe three performance visualizations in text form:
-
-1. **Mismatch Timeline**: Describe moments where audio and visual elements don't align
-   - Timeline of mismatches (timestamps)
-   - What was mismatched (e.g., "nervous voice with confident posture")
-   - Severity and impact
-
-2. **Energy vs Intensity Over Time**: Describe the energy/intensity curve
-   - How energy levels changed throughout the presentation
-   - Peaks and valleys (with timestamps)
-   - Whether energy matched content importance
-
-3. **Expected vs Actual Impact Gap**: Describe the gap between intended and actual impact
-   - What the speaker seemed to intend (based on content/delivery)
-   - What the actual impact likely was (based on data)
-   - Where the biggest gaps occurred
-
-**Input Data (JSON):**
+INPUT DATA:
 {json_data}
 
-**Instructions:**
-- Describe visualizations in vivid, clear language (as if painting a picture)
-- Use specific timestamps and data points
-- Explain what each visualization reveals about performance
-- If video data is limited, focus on audio-based patterns
-- Make the descriptions actionable (what the patterns mean for improvement)
+REQUIRED OUTPUT FORMAT - Return this exact structure with real data:
+{
+"mismatchTimeline": [{"time": "00:00", "timeSeconds": 0, "expected": 0.7, "actual": 0.4, "gap": 0.3, "status": "weak_gap", "transcript": "opening statement"}],
+"energyFusion": [{"time": "00:00", "timeSeconds": 0, "audioEnergy": 0.5, "bodyEnergy": 0.3, "faceEnergy": 0.4, "handEnergy": 0.2}],
+"opportunityMap": [{"time": "00:00", "expected": 0.7, "actual": 0.4, "gap": 0.3, "status": "weak_gap", "quadrant": "Missed Opportunities", "transcript": "opening"}],
+"interpretation": "Summary of performance insights in 2-3 sentences."
+}
 
-**CRITICAL OUTPUT RULES:**
-- Start IMMEDIATELY with the first visualization section
-- Do NOT include any introductory statements like "Here is your analysis" or "Based on the data"
-- Do NOT include any closing statements, suggestions, or questions after the third visualization
-- Provide ONLY the main body content with three clearly labeled sections
-- Stop immediately after the third visualization — no additional text
+PROCESSING RULES:
+For each 5-second window in the input data:
+1. Calculate expected_impact: Start at 0.3, add 0.1 for keywords (never/always/must/critical/important/everyone/nobody/everything/nothing), add 0.05 for questions, add 0.05 if sentence has more than 15 words, maximum 1.0
+2. Calculate actual_impact: Average of available normalized metrics (audio_energy, pitch_std, face_energy, hand_energy, body_energy)
+3. Calculate gap: expected_impact minus actual_impact
+4. Determine status: "aligned" if gap less than 0.15, "weak_gap" if gap between 0.15 and 0.35, "mismatch" if gap greater than 0.35
+5. Determine quadrant: "Strong Moments" if both expected and actual greater than 0.5, "Missed Opportunities" if expected greater than 0.5 but actual 0.5 or less, "Over-delivery" if expected 0.5 or less but actual greater than 0.5, "Neutral" if both 0.5 or less
+6. Extract transcript: First 50 characters of what was said in that window
 
-**Output Format:**
-Three clearly labeled sections, each describing a visualization with specific data points and insights.`,
+CRITICAL: Your entire response must be valid JSON starting with { and ending with }. Do not add any explanatory text, markdown formatting, or headers.`,
 };
 
 /**

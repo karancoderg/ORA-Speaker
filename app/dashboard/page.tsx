@@ -44,6 +44,7 @@ export default function Dashboard({ onMenuClick }: { onMenuClick?: () => void })
   const [userId, setUserId] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [uploadResetTrigger, setUploadResetTrigger] = useState(0);
   const uploadBoxRef = useRef<HTMLDivElement>(null);
   
   const [state, setState] = useState<DashboardState>({
@@ -293,6 +294,9 @@ export default function Dashboard({ onMenuClick }: { onMenuClick?: () => void })
       activeAnalysisType: null,
     }));
     
+    // Trigger upload box reset
+    setUploadResetTrigger(prev => prev + 1);
+    
     // Scroll to upload box after it's rendered
     setTimeout(() => {
       if (uploadBoxRef.current) {
@@ -464,6 +468,7 @@ export default function Dashboard({ onMenuClick }: { onMenuClick?: () => void })
                       onUploadComplete={handleUploadComplete}
                       onUploadProgress={handleUploadProgress}
                       onError={handleUploadError}
+                      resetTrigger={uploadResetTrigger}
                     />
                   </div>
                 </SlideUp>
