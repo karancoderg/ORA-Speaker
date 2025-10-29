@@ -206,7 +206,10 @@ export default function Sidebar({
             </div>
           )}
           <motion.button
-            onClick={onLogout}
+            onClick={() => {
+              console.log('[Sidebar] Sign out button clicked');
+              onLogout();
+            }}
             className="w-full flex items-center gap-3 px-4 py-3 text-white font-medium rounded-xl hover:bg-white/10 transition-colors min-h-[44px] focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-transparent"
             whileHover={!prefersReducedMotion ? { 
               x: 4,

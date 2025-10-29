@@ -21,6 +21,7 @@ interface DashboardState {
   isUploading: boolean;
   uploadProgress: number;
   isAnalyzing: boolean;
+  analysisStage: 'preparing' | 'analyzing' | 'generating' | 'complete' | null;
   feedback: string | null;
   error: string | null;
   showUploadBox: boolean;
@@ -42,6 +43,7 @@ export default function Dashboard({ onMenuClick }: { onMenuClick?: () => void })
     isUploading: false,
     uploadProgress: 0,
     isAnalyzing: false,
+    analysisStage: null,
     feedback: null,
     error: null,
     showUploadBox: false,
@@ -74,6 +76,20 @@ export default function Dashboard({ onMenuClick }: { onMenuClick?: () => void })
 
     checkAuth();
   }, [router]);
+
+  // Clear completion stage after 5 seconds
+  useEffect(() => {
+    if (state.analysisStage === 'complete') {
+      const timer = setTimeout(() => {
+        setState((prev) => ({
+          ...prev,
+          analysisStage: null,
+        }));
+      }, 5000);
+
+      return () => clearTimeout(timer);
+    }
+  }, [state.analysisStage]);
 
   // Fetch feedback history function
   const fetchFeedbackHistory = async () => {
@@ -135,11 +151,19 @@ export default function Dashboard({ onMenuClick }: { onMenuClick?: () => void })
   }, [userId]);
 
   const handleLogout = async () => {
+    console.log('[Dashboard] Logout initiated');
     try {
-      await supabase.auth.signOut();
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        console.error('[Dashboard] Logout error from Supabase:', error);
+        throw error;
+      }
+      console.log('[Dashboard] Logout successful, redirecting to home');
       router.push('/');
     } catch (error) {
-      console.error('Logout error:', error);
+      console.error('[Dashboard] Logout error:', error);
+      // Force redirect even if signOut fails
+      router.push('/');
     }
   };
 
@@ -270,15 +294,35 @@ export default function Dashboard({ onMenuClick }: { onMenuClick?: () => void })
       return;
     }
 
-    // Set analyzing state
+    // Set analyzing state with initial stage
     setState((prev) => ({
       ...prev,
       isAnalyzing: true,
+      analysisStage: 'preparing',
       error: null,
       feedback: null,
     }));
 
     try {
+      // Create AbortController for timeout handling (5 minutes)
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 300000); // 5 minutes
+
+      // Simulate stage progression for better UX
+      const stageTimer1 = setTimeout(() => {
+        setState((prev) => ({
+          ...prev,
+          analysisStage: 'analyzing',
+        }));
+      }, 2000);
+
+      const stageTimer2 = setTimeout(() => {
+        setState((prev) => ({
+          ...prev,
+          analysisStage: 'generating',
+        }));
+      }, 15000);
+
       const response = await fetch('/api/analyze', {
         method: 'POST',
         headers: {
@@ -288,7 +332,13 @@ export default function Dashboard({ onMenuClick }: { onMenuClick?: () => void })
           userId,
           videoPath: state.uploadedVideo.path,
         }),
+        signal: controller.signal,
       });
+
+      // Clear timers
+      clearTimeout(timeoutId);
+      clearTimeout(stageTimer1);
+      clearTimeout(stageTimer2);
 
       const data = await response.json();
 
@@ -302,6 +352,7 @@ export default function Dashboard({ onMenuClick }: { onMenuClick?: () => void })
         feedback: data.feedback,
         selectedFeedbackId: data.feedbackSessionId,
         isAnalyzing: false,
+        analysisStage: 'complete',
         error: null,
       }));
 
@@ -309,10 +360,18 @@ export default function Dashboard({ onMenuClick }: { onMenuClick?: () => void })
       await fetchFeedbackHistory();
     } catch (error) {
       console.error('Analysis error:', error);
+      
+      // Check if it's a timeout error
+      const isTimeout = error instanceof Error && error.name === 'AbortError';
+      const errorMessage = isTimeout 
+        ? 'Analysis is taking longer than expected. Please try again with a shorter video.'
+        : error instanceof Error ? error.message : 'Failed to analyze video. Please try again.';
+      
       setState((prev) => ({
         ...prev,
         isAnalyzing: false,
-        error: error instanceof Error ? error.message : 'Failed to analyze video. Please try again.',
+        analysisStage: null,
+        error: errorMessage,
       }));
     }
   };
@@ -428,16 +487,74 @@ export default function Dashboard({ onMenuClick }: { onMenuClick?: () => void })
                                   d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                                 ></path>
                               </svg>
-                              Analyzing...
+                              {state.analysisStage === 'preparing' && 'Preparing video...'}
+                              {state.analysisStage === 'analyzing' && 'Analyzing video...'}
+                              {state.analysisStage === 'generating' && 'Generating feedback...'}
+                              {!state.analysisStage && 'Analyzing...'}
                             </span>
                           ) : (
                             'Analyze Video'
                           )}
                         </button>
                         {state.isAnalyzing && (
-                          <p className="mt-4 text-sm text-slate-400">
-                            Please wait while we analyze your video. This may take a moment.
-                          </p>
+                          <motion.div
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.3 }}
+                            className="mt-4"
+                          >
+                            <p className="text-sm text-slate-300 font-medium">
+                              {state.analysisStage === 'preparing' && 'Preparing your video for analysis...'}
+                              {state.analysisStage === 'analyzing' && 'AI is analyzing your presentation...'}
+                              {state.analysisStage === 'generating' && 'Generating personalized feedback...'}
+                              {!state.analysisStage && 'Processing your video...'}
+                            </p>
+                            <p className="text-xs text-slate-400 mt-2">
+                              This may take up to a few minutes depending on video length
+                            </p>
+                            
+                            {/* Progress indicator dots */}
+                            <div className="flex items-center justify-center gap-2 mt-4">
+                              <motion.div
+                                className="w-2 h-2 rounded-full bg-blue-400"
+                                animate={{
+                                  scale: [1, 1.5, 1],
+                                  opacity: [0.5, 1, 0.5],
+                                }}
+                                transition={{
+                                  duration: 1.5,
+                                  repeat: Infinity,
+                                  ease: 'easeInOut',
+                                }}
+                              />
+                              <motion.div
+                                className="w-2 h-2 rounded-full bg-purple-400"
+                                animate={{
+                                  scale: [1, 1.5, 1],
+                                  opacity: [0.5, 1, 0.5],
+                                }}
+                                transition={{
+                                  duration: 1.5,
+                                  repeat: Infinity,
+                                  ease: 'easeInOut',
+                                  delay: 0.3,
+                                }}
+                              />
+                              <motion.div
+                                className="w-2 h-2 rounded-full bg-cyan-400"
+                                animate={{
+                                  scale: [1, 1.5, 1],
+                                  opacity: [0.5, 1, 0.5],
+                                }}
+                                transition={{
+                                  duration: 1.5,
+                                  repeat: Infinity,
+                                  ease: 'easeInOut',
+                                  delay: 0.6,
+                                }}
+                              />
+                            </div>
+                          </motion.div>
                         )}
                       </div>
                     </div>
@@ -453,6 +570,42 @@ export default function Dashboard({ onMenuClick }: { onMenuClick?: () => void })
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4, delay: 0.2 }}
               >
+                {/* Completion message */}
+                {state.analysisStage === 'complete' && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ duration: 0.3 }}
+                    className="backdrop-blur-xl bg-green-500/10 border border-green-500/50 rounded-2xl shadow-lg p-4 mb-6"
+                  >
+                    <div className="flex items-center gap-3">
+                      <motion.div
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                      >
+                        <svg
+                          className="w-6 h-6 text-green-400"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                          />
+                        </svg>
+                      </motion.div>
+                      <div>
+                        <p className="text-sm text-green-300 font-semibold">Analysis Complete!</p>
+                        <p className="text-xs text-green-200/80 mt-0.5">Your personalized feedback is ready</p>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+                
                 <FeedbackCard
                   feedback={state.feedback}
                   isLoading={state.isAnalyzing}
