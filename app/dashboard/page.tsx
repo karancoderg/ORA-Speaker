@@ -9,9 +9,12 @@ import EmptyState from '@/components/EmptyState';
 import UploadBox from '@/components/UploadBox';
 import VideoPreview from '@/components/VideoPreview';
 import FeedbackCard from '@/components/FeedbackCard';
+import AnalysisButton from '@/components/AnalysisButton';
 import { FadeIn, SlideUp } from '@/components/AnimationWrappers';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FeedbackSession } from '@/lib/types';
+import { FeedbackSession, AnalysisType } from '@/lib/types';
+import { ANALYSIS_LABELS } from '@/lib/analysisPrompts';
+import { BarChart3, Scale, Clock, Wrench, TrendingUp } from 'lucide-react';
 
 interface DashboardState {
   uploadedVideo: {
@@ -29,6 +32,11 @@ interface DashboardState {
   selectedFeedbackId: string | null;
   isLoadingHistory: boolean;
   historyError: string | null;
+  // Multi-analysis state
+  analysisResults: Record<AnalysisType, string>;
+  loadingStates: Record<AnalysisType, boolean>;
+  completedAnalyses: Record<AnalysisType, boolean>;
+  activeAnalysisType: AnalysisType | null;
 }
 
 export default function Dashboard({ onMenuClick }: { onMenuClick?: () => void }) {
@@ -51,6 +59,11 @@ export default function Dashboard({ onMenuClick }: { onMenuClick?: () => void })
     selectedFeedbackId: null,
     isLoadingHistory: false,
     historyError: null,
+    // Multi-analysis state
+    analysisResults: {} as Record<AnalysisType, string>,
+    loadingStates: {} as Record<AnalysisType, boolean>,
+    completedAnalyses: {} as Record<AnalysisType, boolean>,
+    activeAnalysisType: null,
   });
 
   useEffect(() => {
@@ -176,6 +189,12 @@ export default function Dashboard({ onMenuClick }: { onMenuClick?: () => void })
       uploadedVideo: null,
       showUploadBox: false,
       error: null,
+      // Set active analysis type from the session
+      activeAnalysisType: session.analysis_type,
+      // Clear multi-analysis state (viewing history, not analyzing new video)
+      analysisResults: {} as Record<AnalysisType, string>,
+      loadingStates: {} as Record<AnalysisType, boolean>,
+      completedAnalyses: {} as Record<AnalysisType, boolean>,
     }));
 
     // Generate pre-signed URL for the video
@@ -267,6 +286,11 @@ export default function Dashboard({ onMenuClick }: { onMenuClick?: () => void })
       uploadedVideo: null,
       feedback: null,
       error: null,
+      // Clear multi-analysis state
+      analysisResults: {} as Record<AnalysisType, string>,
+      loadingStates: {} as Record<AnalysisType, boolean>,
+      completedAnalyses: {} as Record<AnalysisType, boolean>,
+      activeAnalysisType: null,
     }));
     
     // Scroll to upload box after it's rendered
@@ -286,59 +310,66 @@ export default function Dashboard({ onMenuClick }: { onMenuClick?: () => void })
       uploadedVideo: null,
       feedback: null,
       error: null,
+      // Clear multi-analysis state
+      analysisResults: {} as Record<AnalysisType, string>,
+      loadingStates: {} as Record<AnalysisType, boolean>,
+      completedAnalyses: {} as Record<AnalysisType, boolean>,
+      activeAnalysisType: null,
     }));
   };
 
-  const handleAnalyzeVideo = async () => {
+  const handleAnalyze = async (analysisType: AnalysisType) => {
     if (!state.uploadedVideo || !userId) {
       return;
     }
 
-    // Set analyzing state with initial stage
+    // If already generated, just display it
+    if (state.analysisResults[analysisType]) {
+      setState((prev) => ({
+        ...prev,
+        activeAnalysisType: analysisType,
+        feedback: prev.analysisResults[analysisType],
+        error: null,
+      }));
+      return;
+    }
+
+    // Set loading state for this specific analysis type
     setState((prev) => ({
       ...prev,
-      isAnalyzing: true,
-      analysisStage: 'preparing',
+      loadingStates: { ...prev.loadingStates, [analysisType]: true },
+      activeAnalysisType: analysisType,
       error: null,
-      feedback: null,
     }));
 
     try {
+      // Get current session for auth token
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        throw new Error('Authentication required');
+      }
+
       // Create AbortController for timeout handling (5 minutes)
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 300000); // 5 minutes
-
-      // Simulate stage progression for better UX
-      const stageTimer1 = setTimeout(() => {
-        setState((prev) => ({
-          ...prev,
-          analysisStage: 'analyzing',
-        }));
-      }, 2000);
-
-      const stageTimer2 = setTimeout(() => {
-        setState((prev) => ({
-          ...prev,
-          analysisStage: 'generating',
-        }));
-      }, 15000);
 
       const response = await fetch('/api/analyze', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
         },
         body: JSON.stringify({
           userId,
           videoPath: state.uploadedVideo.path,
+          analysisType,
         }),
         signal: controller.signal,
       });
 
-      // Clear timers
+      // Clear timeout
       clearTimeout(timeoutId);
-      clearTimeout(stageTimer1);
-      clearTimeout(stageTimer2);
 
       const data = await response.json();
 
@@ -346,13 +377,14 @@ export default function Dashboard({ onMenuClick }: { onMenuClick?: () => void })
         throw new Error(data.error || 'Failed to analyze video');
       }
 
-      // Update state with feedback and selected feedback ID
+      // Store result and mark as completed
       setState((prev) => ({
         ...prev,
+        analysisResults: { ...prev.analysisResults, [analysisType]: data.feedback },
+        completedAnalyses: { ...prev.completedAnalyses, [analysisType]: true },
+        loadingStates: { ...prev.loadingStates, [analysisType]: false },
         feedback: data.feedback,
         selectedFeedbackId: data.feedbackSessionId,
-        isAnalyzing: false,
-        analysisStage: 'complete',
         error: null,
       }));
 
@@ -369,8 +401,7 @@ export default function Dashboard({ onMenuClick }: { onMenuClick?: () => void })
       
       setState((prev) => ({
         ...prev,
-        isAnalyzing: false,
-        analysisStage: null,
+        loadingStates: { ...prev.loadingStates, [analysisType]: false },
         error: errorMessage,
       }));
     }
@@ -451,164 +482,86 @@ export default function Dashboard({ onMenuClick }: { onMenuClick?: () => void })
                   videoPath={state.uploadedVideo.path}
                 />
 
-                {/* Analyze Video Button */}
-                {!state.feedback && (
-                  <FadeIn delay={0.1}>
-                    <div className="backdrop-blur-xl bg-white/10 border border-white/20 rounded-2xl shadow-lg p-6 mt-6 hover:border-white/30 transition-all duration-300">
-                      <div className="text-center">
-                        <button
-                          onClick={handleAnalyzeVideo}
-                          disabled={state.isAnalyzing}
-                          className={`px-8 py-3 text-white font-semibold rounded-xl transition-all duration-300 shadow-lg min-h-[44px] focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-slate-900 ${
-                            state.isAnalyzing
-                              ? 'bg-gradient-to-r from-blue-400 to-purple-400 cursor-not-allowed opacity-70'
-                              : 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 hover:-translate-y-1 hover:shadow-[0_0_30px_rgba(59,130,246,0.5)]'
-                          }`}
-                        >
-                          {state.isAnalyzing ? (
-                            <span className="flex items-center justify-center">
-                              <svg
-                                className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
-                                xmlns="http://www.w3.org/2000/svg"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                              >
-                                <circle
-                                  className="opacity-25"
-                                  cx="12"
-                                  cy="12"
-                                  r="10"
-                                  stroke="currentColor"
-                                  strokeWidth="4"
-                                ></circle>
-                                <path
-                                  className="opacity-75"
-                                  fill="currentColor"
-                                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                                ></path>
-                              </svg>
-                              {state.analysisStage === 'preparing' && 'Preparing video...'}
-                              {state.analysisStage === 'analyzing' && 'Analyzing video...'}
-                              {state.analysisStage === 'generating' && 'Generating feedback...'}
-                              {!state.analysisStage && 'Analyzing...'}
-                            </span>
-                          ) : (
-                            'Analyze Video'
-                          )}
-                        </button>
-                        {state.isAnalyzing && (
-                          <motion.div
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.3 }}
-                            className="mt-4"
-                          >
-                            <p className="text-sm text-slate-300 font-medium">
-                              {state.analysisStage === 'preparing' && 'Preparing your video for analysis...'}
-                              {state.analysisStage === 'analyzing' && 'AI is analyzing your presentation...'}
-                              {state.analysisStage === 'generating' && 'Generating personalized feedback...'}
-                              {!state.analysisStage && 'Processing your video...'}
-                            </p>
-                            <p className="text-xs text-slate-400 mt-2">
-                              This may take up to a few minutes depending on video length
-                            </p>
-                            
-                            {/* Progress indicator dots */}
-                            <div className="flex items-center justify-center gap-2 mt-4">
-                              <motion.div
-                                className="w-2 h-2 rounded-full bg-blue-400"
-                                animate={{
-                                  scale: [1, 1.5, 1],
-                                  opacity: [0.5, 1, 0.5],
-                                }}
-                                transition={{
-                                  duration: 1.5,
-                                  repeat: Infinity,
-                                  ease: 'easeInOut',
-                                }}
-                              />
-                              <motion.div
-                                className="w-2 h-2 rounded-full bg-purple-400"
-                                animate={{
-                                  scale: [1, 1.5, 1],
-                                  opacity: [0.5, 1, 0.5],
-                                }}
-                                transition={{
-                                  duration: 1.5,
-                                  repeat: Infinity,
-                                  ease: 'easeInOut',
-                                  delay: 0.3,
-                                }}
-                              />
-                              <motion.div
-                                className="w-2 h-2 rounded-full bg-cyan-400"
-                                animate={{
-                                  scale: [1, 1.5, 1],
-                                  opacity: [0.5, 1, 0.5],
-                                }}
-                                transition={{
-                                  duration: 1.5,
-                                  repeat: Infinity,
-                                  ease: 'easeInOut',
-                                  delay: 0.6,
-                                }}
-                              />
-                            </div>
-                          </motion.div>
-                        )}
-                      </div>
+                {/* Analysis Button Grid */}
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.4, delay: 0.1 }}
+                  className="mt-6"
+                >
+                  <div className="backdrop-blur-xl bg-white/10 border border-white/20 rounded-2xl shadow-lg p-6 hover:border-white/30 transition-all duration-300">
+                    <h3 className="text-lg font-semibold text-white mb-4">
+                      Choose Analysis Type
+                    </h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                      <AnalysisButton
+                        type="executive_summary"
+                        label={ANALYSIS_LABELS.executive_summary.label}
+                        icon={<BarChart3 />}
+                        description={ANALYSIS_LABELS.executive_summary.description}
+                        onClick={() => handleAnalyze('executive_summary')}
+                        loading={state.loadingStates.executive_summary || false}
+                        completed={state.completedAnalyses.executive_summary || false}
+                        active={state.activeAnalysisType === 'executive_summary'}
+                      />
+                      <AnalysisButton
+                        type="strengths_failures"
+                        label={ANALYSIS_LABELS.strengths_failures.label}
+                        icon={<Scale />}
+                        description={ANALYSIS_LABELS.strengths_failures.description}
+                        onClick={() => handleAnalyze('strengths_failures')}
+                        loading={state.loadingStates.strengths_failures || false}
+                        completed={state.completedAnalyses.strengths_failures || false}
+                        active={state.activeAnalysisType === 'strengths_failures'}
+                      />
+                      <AnalysisButton
+                        type="timewise_analysis"
+                        label={ANALYSIS_LABELS.timewise_analysis.label}
+                        icon={<Clock />}
+                        description={ANALYSIS_LABELS.timewise_analysis.description}
+                        onClick={() => handleAnalyze('timewise_analysis')}
+                        loading={state.loadingStates.timewise_analysis || false}
+                        completed={state.completedAnalyses.timewise_analysis || false}
+                        active={state.activeAnalysisType === 'timewise_analysis'}
+                      />
+                      <AnalysisButton
+                        type="action_fixes"
+                        label={ANALYSIS_LABELS.action_fixes.label}
+                        icon={<Wrench />}
+                        description={ANALYSIS_LABELS.action_fixes.description}
+                        onClick={() => handleAnalyze('action_fixes')}
+                        loading={state.loadingStates.action_fixes || false}
+                        completed={state.completedAnalyses.action_fixes || false}
+                        active={state.activeAnalysisType === 'action_fixes'}
+                      />
+                      <AnalysisButton
+                        type="visualizations"
+                        label={ANALYSIS_LABELS.visualizations.label}
+                        icon={<TrendingUp />}
+                        description={ANALYSIS_LABELS.visualizations.description}
+                        onClick={() => handleAnalyze('visualizations')}
+                        loading={state.loadingStates.visualizations || false}
+                        completed={state.completedAnalyses.visualizations || false}
+                        active={state.activeAnalysisType === 'visualizations'}
+                      />
                     </div>
-                  </FadeIn>
-                )}
+                  </div>
+                </motion.div>
               </motion.div>
             )}
 
             {/* Feedback Section */}
-            {state.feedback && (
+            {state.feedback && state.activeAnalysisType && (
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4, delay: 0.2 }}
               >
-                {/* Completion message */}
-                {state.analysisStage === 'complete' && (
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ duration: 0.3 }}
-                    className="backdrop-blur-xl bg-green-500/10 border border-green-500/50 rounded-2xl shadow-lg p-4 mb-6"
-                  >
-                    <div className="flex items-center gap-3">
-                      <motion.div
-                        initial={{ scale: 0 }}
-                        animate={{ scale: 1 }}
-                        transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-                      >
-                        <svg
-                          className="w-6 h-6 text-green-400"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                          />
-                        </svg>
-                      </motion.div>
-                      <div>
-                        <p className="text-sm text-green-300 font-semibold">Analysis Complete!</p>
-                        <p className="text-xs text-green-200/80 mt-0.5">Your personalized feedback is ready</p>
-                      </div>
-                    </div>
-                  </motion.div>
-                )}
-                
                 <FeedbackCard
                   feedback={state.feedback}
-                  isLoading={state.isAnalyzing}
+                  isLoading={state.loadingStates[state.activeAnalysisType] || false}
+                  analysisType={state.activeAnalysisType}
+                  analysisLabel={ANALYSIS_LABELS[state.activeAnalysisType]?.label}
                 />
               </motion.div>
             )}

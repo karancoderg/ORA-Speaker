@@ -8,12 +8,16 @@ interface FeedbackCardProps {
   feedback: string;
   isLoading?: boolean;
   onSave?: () => void;
+  analysisType?: string;
+  analysisLabel?: string;
 }
 
 export default function FeedbackCard({
   feedback,
   isLoading = false,
   onSave,
+  analysisType,
+  analysisLabel,
 }: FeedbackCardProps) {
   // Parse feedback into sections for structured rendering
   const parseFeedback = (text: string) => {
@@ -176,7 +180,7 @@ export default function FeedbackCard({
               <div className="absolute inset-0 w-6 h-6 bg-blue-400/30 blur-md group-hover:bg-blue-400/50 transition-all"></div>
             </div>
             <h3 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-purple-400 to-cyan-400">
-              AI Feedback
+              {analysisLabel || 'AI Feedback'}
             </h3>
           </motion.div>
 

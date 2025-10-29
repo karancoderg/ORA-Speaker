@@ -128,6 +128,74 @@ Be specific, reference the data points, and maintain an encouraging tone. Focus 
   }
 
   /**
+   * Process JSON data with a custom prompt
+   * @param jsonData - Raw JSON data to be processed
+   * @param customPrompt - Custom prompt template to use
+   * @returns Natural language feedback text
+   * @throws Error if processing fails or response is empty
+   */
+  async processWithPrompt(
+    jsonData: any,
+    customPrompt: string
+  ): Promise<string> {
+    const timer = this.logger.startTimer('gemini_custom_prompt_processing');
+
+    // Validate JSON structure
+    const validationResult = this.validateJsonStructure(jsonData);
+    if (!validationResult.isValid) {
+      this.logger.warn('Invalid JSON structure detected', {
+        reason: validationResult.reason,
+        jsonDataKeys: jsonData ? Object.keys(jsonData) : [],
+      });
+      throw new Error(`Invalid JSON data: ${validationResult.reason}`);
+    }
+
+    // Validate custom prompt
+    if (!customPrompt || customPrompt.trim().length === 0) {
+      this.logger.error('Empty custom prompt provided');
+      throw new Error('Custom prompt cannot be empty');
+    }
+
+    try {
+      const model = this.genAI.getGenerativeModel({ model: this.model });
+
+      // Use the custom prompt directly (it should already have JSON data injected)
+      const result = await model.generateContent(customPrompt);
+      const feedback = result.response.text();
+
+      // Check for empty response
+      if (!feedback || feedback.trim().length === 0) {
+        this.logger.error('Empty feedback received from Gemini', {
+          jsonDataKeys: Object.keys(jsonData),
+          promptLength: customPrompt.length,
+        });
+        throw new Error('Gemini returned empty feedback');
+      }
+
+      this.logger.endTimer(timer);
+      this.logger.info('Successfully processed custom prompt', {
+        feedbackLength: feedback.length,
+        jsonKeys: Object.keys(jsonData),
+        promptLength: customPrompt.length,
+      });
+
+      return feedback;
+    } catch (error) {
+      this.logger.error('Failed to process custom prompt', {
+        error: error instanceof Error ? error.message : String(error),
+        jsonDataKeys: jsonData ? Object.keys(jsonData) : [],
+        promptLength: customPrompt.length,
+      });
+
+      // Re-throw with more context
+      if (error instanceof Error) {
+        throw new Error(`Failed to process custom prompt with Gemini: ${error.message}`);
+      }
+      throw new Error('Failed to process custom prompt with Gemini: Unknown error');
+    }
+  }
+
+  /**
    * Validate JSON structure and detect incomplete or invalid data
    * @param jsonAnalysis - JSON to validate
    * @returns Validation result with reason if invalid

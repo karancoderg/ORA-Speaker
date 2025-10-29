@@ -1,5 +1,12 @@
 // TypeScript type definitions for the application
 
+export type AnalysisType = 
+  | 'executive_summary'      // Overall verdict and metrics
+  | 'strengths_failures'     // What works and what doesn't
+  | 'timewise_analysis'      // 5-second breakdown
+  | 'action_fixes'           // Specific improvements
+  | 'visualizations';        // Performance patterns
+
 export interface User {
   id: string;
   email: string;
@@ -39,6 +46,7 @@ export interface FeedbackSession {
   feedback_text: string | null;
   raw_analysis?: ExternalAIAnalysis | null;
   analysis_source?: 'external_ai' | 'gemini_direct' | 'hybrid';
+  analysis_type: AnalysisType;
   created_at: string;
 }
 
